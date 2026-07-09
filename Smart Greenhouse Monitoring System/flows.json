@@ -1,0 +1,236 @@
+[
+    {
+        "id": "574500bbb480903c",
+        "type": "tab",
+        "label": "Telemetry to MongoDB",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "a3bcf522ae4f72a1",
+        "type": "json",
+        "z": "574500bbb480903c",
+        "name": "",
+        "property": "payload",
+        "action": "obj",
+        "pretty": false,
+        "x": 450,
+        "y": 140,
+        "wires": [
+            [
+                "f4d6d72d2146f82e"
+            ]
+        ]
+    },
+    {
+        "id": "f4d6d72d2146f82e",
+        "type": "function",
+        "z": "574500bbb480903c",
+        "name": "Save Original Data",
+        "func": "msg.originalData = msg.payload;\n\nmsg.payload = {\n  device_id: msg.originalData.device_id,\n  api_key: msg.originalData.api_key,\n  location: msg.originalData.location\n};\n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 630,
+        "y": 140,
+        "wires": [
+            [
+                "72c1b7415e1c89d8"
+            ]
+        ]
+    },
+    {
+        "id": "72c1b7415e1c89d8",
+        "type": "mongodb4",
+        "z": "574500bbb480903c",
+        "clientNode": "23a58278c1624035",
+        "mode": "collection",
+        "collection": "metadata",
+        "operation": "findOne",
+        "output": "forEach",
+        "maxTimeMS": "0",
+        "handleDocId": false,
+        "name": "",
+        "x": 820,
+        "y": 140,
+        "wires": [
+            [
+                "46c6176641961751"
+            ]
+        ]
+    },
+    {
+        "id": "9a1fc907ef945cf6",
+        "type": "function",
+        "z": "574500bbb480903c",
+        "name": "Prepare Telemetry Data",
+        "func": "let data = msg.originalData;\nlet alerts = [];\n\nif (data.soil_moisture < 40) alerts.push(\"Soil too dry\");\nif (data.soil_moisture > 80) alerts.push(\"Soil too wet\");\nif (data.temperature > 35) alerts.push(\"Temperature too high\");\nif (data.temperature < 5) alerts.push(\"Temperature too low\");\nif (data.humidity > 85) alerts.push(\"Humidity too high\");\nif (data.humidity < 15) alerts.push(\"Humidity too low\");\n\nmsg.payload = {\n  timestamp: new Date(),\n  device_id: data.device_id,\n  temperature: data.temperature,\n  humidity: data.humidity,\n  soil_moisture: data.soil_moisture,\n  light_intensity: data.light_intensity,\n  location: data.location,\n  alert: alerts.length > 0 ? alerts.join(\", \") : \"Normal\"\n};\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 750,
+        "y": 240,
+        "wires": [
+            [
+                "59c2f74ab52d3fba"
+            ]
+        ]
+    },
+    {
+        "id": "59c2f74ab52d3fba",
+        "type": "mongodb4",
+        "z": "574500bbb480903c",
+        "clientNode": "23a58278c1624035",
+        "mode": "collection",
+        "collection": "telemetry",
+        "operation": "insertOne",
+        "output": "forEach",
+        "maxTimeMS": "0",
+        "handleDocId": false,
+        "name": "",
+        "x": 960,
+        "y": 240,
+        "wires": [
+            [
+                "fb414e5a24d7a616"
+            ]
+        ]
+    },
+    {
+        "id": "46c6176641961751",
+        "type": "switch",
+        "z": "574500bbb480903c",
+        "name": "Registered Device",
+        "property": "payload",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "nnull"
+            },
+            {
+                "t": "else"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 2,
+        "x": 450,
+        "y": 280,
+        "wires": [
+            [
+                "9a1fc907ef945cf6"
+            ],
+            [
+                "800b401d04ac3d79"
+            ]
+        ]
+    },
+    {
+        "id": "80064c57019dc138",
+        "type": "http in",
+        "z": "574500bbb480903c",
+        "name": "",
+        "url": "/greenhouse/telemetry",
+        "method": "post",
+        "upload": false,
+        "skipBodyParsing": false,
+        "swaggerDoc": "",
+        "x": 240,
+        "y": 140,
+        "wires": [
+            [
+                "a3bcf522ae4f72a1"
+            ]
+        ]
+    },
+    {
+        "id": "4a92b6def2809861",
+        "type": "http response",
+        "z": "574500bbb480903c",
+        "name": "",
+        "statusCode": "",
+        "headers": {},
+        "x": 1150,
+        "y": 360,
+        "wires": []
+    },
+    {
+        "id": "800b401d04ac3d79",
+        "type": "function",
+        "z": "574500bbb480903c",
+        "name": "Function error code",
+        "func": "msg.statusCode = 401;\nmsg.payload = {\n    status: \"Rejected\",\n    message: \"Unauthorized device\"\n};\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 730,
+        "y": 320,
+        "wires": [
+            [
+                "4a92b6def2809861"
+            ]
+        ]
+    },
+    {
+        "id": "fb414e5a24d7a616",
+        "type": "function",
+        "z": "574500bbb480903c",
+        "name": "function success",
+        "func": "msg.statusCode = 200;\nmsg.payload = {\n    status: \"Success\",\n    message: \"Telemetry data saved\"\n};\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1150,
+        "y": 240,
+        "wires": [
+            [
+                "4a92b6def2809861"
+            ]
+        ]
+    },
+    {
+        "id": "23a58278c1624035",
+        "type": "mongodb4-client",
+        "name": "",
+        "protocol": "mongodb",
+        "hostname": "localhost",
+        "port": "27017",
+        "dbName": "greenhouse_db",
+        "appName": "",
+        "authSource": "",
+        "authMechanism": "DEFAULT",
+        "tls": false,
+        "tlsCAFile": "",
+        "tlsCertificateKeyFile": "",
+        "tlsInsecure": false,
+        "connectTimeoutMS": "30000",
+        "socketTimeoutMS": "0",
+        "minPoolSize": "0",
+        "maxPoolSize": "100",
+        "maxIdleTimeMS": "0",
+        "uri": "mongodb+srv://nzhahzukri_db_user:db123@cluster0.79ekcjo.mongodb.net/?appName=Cluster0",
+        "advanced": "{}",
+        "uriTabActive": "tab-uri-advanced"
+    },
+    {
+        "id": "8fd97cb12a91de4d",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-contrib-mongodb4": "3.4.0"
+        }
+    }
+]
